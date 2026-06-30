@@ -1,56 +1,79 @@
-# Lessons Learned
+# What I Learned Designing Layered Cloud Security Controls
 
 ## 1. Automated Remediation Should Complement Prevention
 
-Automated remediation is valuable because it reduces the time a risky configuration remains active. However, remediation should not replace preventive controls.
+One of the main lessons from this project was that automated remediation should not replace preventive controls.
 
-In this project, infrastructure scanning was used to identify insecure configurations before deployment, while event-driven remediation addressed changes that still reached the environment. This layered approach is stronger than relying on either control independently.
+The project used infrastructure scanning to identify insecure Terraform configurations before deployment. It also included an event-driven remediation pattern intended to respond if a risky S3 configuration was introduced into the environment.
 
-The architecture lesson is that prevention should reduce the likelihood of exposure, while remediation should reduce the duration and impact of exposure when prevention fails.
+These controls address different parts of the risk.
+
+Preventive controls reduce the likelihood that an insecure configuration will be deployed. Corrective controls reduce the amount of time the environment remains in an insecure state when prevention is bypassed or fails.
+
+The architecture lesson is that automated remediation is strongest when it acts as a second layer of protection rather than the first and only control.
 
 ## 2. Controls Must Account for Changes Outside the Approved Pipeline
 
-Preventive scanning is most effective when infrastructure changes follow the approved deployment process. However, cloud environments may also be modified manually, through alternate automation, or through administrative access.
+Infrastructure scanning is effective only when changes pass through the pipeline in which the scanning control operates.
 
-A control design that relies only on pipeline scanning assumes every change will follow the intended path. The project therefore included detective and corrective capabilities that could respond to risky changes regardless of how they were introduced.
+Cloud resources can also be changed manually, through another automation process, or through an administrative path that does not use the approved deployment workflow.
 
-The architecture should protect the environment, not only the deployment pipeline.
+A design that relies exclusively on pipeline scanning therefore leaves a potential control gap.
 
-## 3. Detection Without Correction Leaves Risk Unresolved
+The event-driven portion of this project illustrated the need to detect and respond to risky resource changes regardless of how those changes were introduced.
 
-Detective controls provide visibility, but an alert alone does not remove the insecure condition.
+The architecture lesson is that security controls should protect the environment itself, not only the preferred deployment path.
 
-If a public S3 configuration is detected but no corrective action occurs, the exposure remains until someone investigates and responds. Manual response can also introduce delays, inconsistent handling, and operational dependency.
+## 3. Detection Without a Defined Response Leaves Risk Unresolved
 
-Automated correction helps shorten the exposure window and creates a more predictable response. Detection should therefore be connected to a defined remediation process rather than treated as the final control outcome.
+Detecting a risky configuration is important, but detection alone does not restore the resource to an approved state.
 
-## 4. Correction Without Evidence Creates a Governance Gap
+An alert that requires manual investigation may leave the exposure in place while someone reviews and responds to it. Response times may also vary depending on staffing, alert volume, and operational priorities.
 
-A control may successfully correct a configuration but still fail to provide sufficient evidence that the event occurred, the remediation executed, and the environment returned to an approved state.
+The Lambda remediation pattern in this project demonstrated how a clearly defined and sufficiently low-risk condition can be connected to an automated corrective action.
 
-Architecture must include observability and evidence requirements alongside technical remediation. Logs, alerts, execution records, and validation results support auditability and allow stakeholders to verify that the control operated as intended.
+The architecture lesson is that detective controls should be paired with an appropriate response process. That response may be automated, manual, or approval-based depending on the potential impact of the action.
 
-A control is not fully operationalized until its effectiveness can be demonstrated.
+## 4. Corrective Automation Must Be Observable and Verifiable
 
-## 5. LocalStack Supports Cost-Efficient Validation but Does Not Replace AWS Testing
+Automatically correcting a configuration is valuable, but the remediation process should not operate as a black box.
 
-LocalStack provided a useful environment for validating the project architecture without creating unnecessary cloud resources or ongoing costs.
+The control design should make it possible to determine:
 
-It supported development of the event flow, remediation logic, infrastructure definitions, and control relationships. This made it possible to test the overall design locally before considering deployment into AWS.
+* What risky change occurred
+* Whether the event was detected
+* Whether the remediation function executed
+* Whether the resource returned to its intended state
 
-However, local emulation does not guarantee identical behavior across every AWS service, permission model, event format, or integration. A production implementation would still require controlled validation in an AWS environment before release.
+Logs, execution results, alerts, and validation checks can support this verification.
 
-The lesson is to use local testing for fast and cost-efficient architecture validation while clearly documenting where cloud-specific verification remains necessary.
+This project demonstrated the importance of including observability in the architecture. A production implementation would still require defined requirements for log retention, evidence ownership, reporting, access control, and audit review.
+
+The architecture lesson is that a corrective control should produce enough information for its operation and outcome to be independently validated.
+
+## 5. Local Validation Reduces Cost but Does Not Replace AWS Validation
+
+LocalStack provided a cost-conscious way to develop and validate the project’s AWS-oriented architecture without maintaining chargeable cloud resources.
+
+It was useful for working through the relationships among Terraform, S3, EventBridge, Lambda, and the remediation logic in a local environment.
+
+However, a local emulator does not prove that every service integration, IAM permission, event format, or runtime behavior will operate identically in AWS.
+
+Before using this pattern in a production environment, the architecture would require controlled testing in an AWS account, including IAM validation, failure testing, logging verification, rollback considerations, and confirmation that the event source reliably invokes the remediation workflow.
+
+The architecture lesson is to use local emulation for efficient development and early validation while clearly identifying the remaining cloud-specific testing requirements.
 
 ## 6. Security Automation Should Be Classified by Control Purpose
 
-Security automation is often described as a single capability, but the components of this project served different control objectives.
+Another lesson from this project was that security automation should not be treated as one undifferentiated control.
 
-* Preventive controls attempted to stop insecure configurations before deployment.
-* Detective controls identified risky changes that occurred in the environment.
-* Corrective controls restored the resource to an approved state.
-* Administrative controls documented expectations, ownership, evidence, and governance requirements.
+The components served distinct purposes:
 
-Separating the architecture into these control categories made the design easier to explain, evaluate, and map to security frameworks.
+* **Preventive controls** identified insecure infrastructure definitions before deployment.
+* **Detective controls** identified risky changes or events within the environment.
+* **Corrective controls** returned the affected resource to its intended configuration.
+* **Administrative controls** documented the control intent, business rationale, expected ownership, operating requirements, and relationships among the technical controls.
 
-The broader lesson is that effective security architecture is not defined by the number of tools deployed. It is defined by how the controls work together to prevent risk, identify failure, restore the environment, and prove the outcome.
+Separating these purposes made the architecture easier to explain and evaluate. It also made it clearer where the design depended on technology and where it depended on governance, ownership, and operating procedures.
+
+The broader architecture lesson is that security effectiveness comes from how the controls work together—not simply from the number of tools or automated functions included in the design.
