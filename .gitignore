@@ -36,6 +36,4 @@ Thumbs.db
 .idea/
 *.swp
 
-# Evidence (keep only the checklist)
-evidence/*
-!evidence/README.md
+
